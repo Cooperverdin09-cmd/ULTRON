@@ -1,0 +1,799 @@
+<script>
+
+/*
+
+  ULTRON 2.0 COMMAND CORE
+
+  ------------------------
+
+  The chat box is now ULTRON's command console.
+
+  IMPORTANT:
+
+  This does NOT put an API key in the browser.
+
+  External AI connections must go through your backend.
+
+*/
+
+const ULTRON = {
+
+  version: "2.0",
+
+  modules: {
+
+    core: true,
+
+    command: true,
+
+    ai: false,
+
+    memory: false,
+
+    tools: false,
+
+    voice: false,
+
+    web: false
+
+  },
+
+  config: {
+
+    provider: null,
+
+    backend: null
+
+  },
+
+  memory: [],
+
+  tools: [],
+
+  commands: {
+
+    "/help": () => `
+
+ULTRON COMMAND SYSTEM
+
+SYSTEM
+
+/status
+
+/diagnostics
+
+/help
+
+AI
+
+/connect ai
+
+/connect openai
+
+/disconnect ai
+
+/ai status
+
+/test ai
+
+MODULES
+
+/modules
+
+/enable memory
+
+/disable memory
+
+/enable tools
+
+/disable tools
+
+/enable voice
+
+/disable voice
+
+/enable web
+
+/disable web
+
+CONFIGURATION
+
+/config
+
+/reset
+
+MEMORY
+
+/memory
+
+/memory clear
+
+ULTRON CORE
+
+/version
+
+/restart
+
+`,
+
+    "/status": () => {
+
+      return `
+
+ULTRON STATUS
+
+Version: ${ULTRON.version}
+
+CORE
+
+${status("core")}
+
+COMMAND SYSTEM
+
+${status("command")}
+
+AI CORE
+
+${status("ai")}
+
+MEMORY
+
+${status("memory")}
+
+TOOLS
+
+${status("tools")}
+
+VOICE
+
+${status("voice")}
+
+WEB
+
+${status("web")}
+
+Provider:
+
+${ULTRON.config.provider || "NOT CONFIGURED"}
+
+Backend:
+
+${ULTRON.config.backend || "NOT CONFIGURED"}
+
+`;
+
+    },
+
+    "/modules": () => {
+
+      let output = "ULTRON MODULE STATUS\n\n";
+
+      for (const [name, enabled] of Object.entries(ULTRON.modules)) {
+
+        output += `${name.toUpperCase()}: ${enabled ? "ONLINE" : "OFFLINE"}\n`;
+
+      }
+
+      return output;
+
+    },
+
+    "/diagnostics": () => {
+
+      return `
+
+ULTRON DIAGNOSTICS
+
+Core: ${ULTRON.modules.core ? "PASS" : "FAIL"}
+
+Commands: ${ULTRON.modules.command ? "PASS" : "FAIL"}
+
+AI: ${ULTRON.modules.ai ? "PASS" : "NOT CONNECTED"}
+
+Memory: ${ULTRON.modules.memory ? "PASS" : "DISABLED"}
+
+Tools: ${ULTRON.modules.tools ? "PASS" : "DISABLED"}
+
+Voice: ${ULTRON.modules.voice ? "PASS" : "DISABLED"}
+
+Web: ${ULTRON.modules.web ? "PASS" : "DISABLED"}
+
+Stored memories: ${ULTRON.memory.length}
+
+Registered tools: ${ULTRON.tools.length}
+
+`;
+
+    },
+
+    "/connect": (args) => {
+
+      if (!args[0]) {
+
+        return "Usage: /connect ai";
+
+      }
+
+      if (args[0] === "ai" || args[0] === "openai") {
+
+        ULTRON.config.provider = "AI";
+
+        ULTRON.config.backend = "REQUIRED";
+
+        ULTRON.modules.ai = false;
+
+        return `
+
+AI CONNECTION REQUEST RECEIVED.
+
+Provider:
+
+${args[0].toUpperCase()}
+
+Status:
+
+NOT CONNECTED
+
+The ULTRON command system is ready.
+
+A secure backend endpoint is still required
+
+before the browser can communicate with an AI model.
+
+API keys must remain on the backend.
+
+`;
+
+      }
+
+      return "Unknown provider.";
+
+    },
+
+    "/disconnect": (args) => {
+
+      if (args[0] === "ai") {
+
+        ULTRON.modules.ai = false;
+
+        ULTRON.config.provider = null;
+
+        return "AI CORE DISCONNECTED.";
+
+      }
+
+      return "Unknown module.";
+
+    },
+
+    "/ai": (args) => {
+
+      if (args[0] === "status") {
+
+        return `
+
+AI CORE
+
+Status:
+
+${ULTRON.modules.ai ? "ONLINE" : "OFFLINE"}
+
+Provider:
+
+${ULTRON.config.provider || "NONE"}
+
+Backend:
+
+${ULTRON.config.backend || "NONE"}
+
+`;
+
+      }
+
+      return "Try: /ai status";
+
+    },
+
+    "/test": (args) => {
+
+      if (args[0] === "ai") {
+
+        if (!ULTRON.modules.ai) {
+
+          return `
+
+AI TEST
+
+FAILED
+
+Reason:
+
+AI backend is not connected.
+
+Core systems are operational.
+
+`;
+
+        }
+
+        return "AI TEST PASSED.";
+
+      }
+
+      return `
+
+SYSTEM TEST
+
+Core: PASS
+
+Command system: PASS
+
+AI: ${ULTRON.modules.ai ? "PASS" : "NOT CONNECTED"}
+
+Memory: ${ULTRON.modules.memory ? "PASS" : "DISABLED"}
+
+Tools: ${ULTRON.modules.tools ? "PASS" : "DISABLED"}
+
+`;
+
+    },
+
+    "/enable": (args) => {
+
+      const module = args[0];
+
+      if (!module) {
+
+        return "Usage: /enable <module>";
+
+      }
+
+      if (!(module in ULTRON.modules)) {
+
+        return `Unknown module: ${module}`;
+
+      }
+
+      if (module === "ai") {
+
+        return "AI cannot be enabled locally. Connect the secure backend first.";
+
+      }
+
+      ULTRON.modules[module] = true;
+
+      return `${module.toUpperCase()} MODULE ENABLED.`;
+
+    },
+
+    "/disable": (args) => {
+
+      const module = args[0];
+
+      if (!module) {
+
+        return "Usage: /disable <module>";
+
+      }
+
+      if (!(module in ULTRON.modules)) {
+
+        return `Unknown module: ${module}`;
+
+      }
+
+      ULTRON.modules[module] = false;
+
+      return `${module.toUpperCase()} MODULE DISABLED.`;
+
+    },
+
+    "/config": () => {
+
+      return `
+
+ULTRON CONFIGURATION
+
+Version:
+
+${ULTRON.version}
+
+AI Provider:
+
+${ULTRON.config.provider || "NONE"}
+
+Backend:
+
+${ULTRON.config.backend || "NONE"}
+
+Memory:
+
+${ULTRON.modules.memory ? "ENABLED" : "DISABLED"}
+
+Tools:
+
+${ULTRON.modules.tools ? "ENABLED" : "DISABLED"}
+
+Voice:
+
+${ULTRON.modules.voice ? "ENABLED" : "DISABLED"}
+
+Web:
+
+${ULTRON.modules.web ? "ENABLED" : "DISABLED"}
+
+`;
+
+    },
+
+    "/memory": (args) => {
+
+      if (args[0] === "clear") {
+
+        ULTRON.memory = [];
+
+        saveState();
+
+        return "ULTRON MEMORY CLEARED.";
+
+      }
+
+      if (!ULTRON.modules.memory) {
+
+        return "Memory module is disabled. Use /enable memory";
+
+      }
+
+      if (ULTRON.memory.length === 0) {
+
+        return "ULTRON MEMORY IS EMPTY.";
+
+      }
+
+      return `
+
+ULTRON MEMORY
+
+${ULTRON.memory.join("\n")}
+
+`;
+
+    },
+
+    "/version": () => {
+
+      return `ULTRON VERSION ${ULTRON.version}`;
+
+    },
+
+    "/restart": () => {
+
+      ULTRON.modules.ai = false;
+
+      ULTRON.config.provider = null;
+
+      return `
+
+ULTRON CORE REINITIALIZED.
+
+Core: ONLINE
+
+Command System: ONLINE
+
+AI: OFFLINE
+
+`;
+
+    },
+
+    "/reset": () => {
+
+      ULTRON.modules.ai = false;
+
+      ULTRON.modules.memory = false;
+
+      ULTRON.modules.tools = false;
+
+      ULTRON.modules.voice = false;
+
+      ULTRON.modules.web = false;
+
+      ULTRON.config.provider = null;
+
+      ULTRON.config.backend = null;
+
+      saveState();
+
+      return "ULTRON CONFIGURATION RESET.";
+
+    }
+
+  }
+
+};
+
+/* ---------------------------
+
+   STATUS HELPER
+
+--------------------------- */
+
+function status(module) {
+
+  return ULTRON.modules[module] ? "ONLINE" : "OFFLINE";
+
+}
+
+/* ---------------------------
+
+   STATE STORAGE
+
+--------------------------- */
+
+function saveState() {
+
+  try {
+
+    localStorage.setItem(
+
+      "ultron_state",
+
+      JSON.stringify({
+
+        modules: ULTRON.modules,
+
+        config: ULTRON.config,
+
+        memory: ULTRON.memory
+
+      })
+
+    );
+
+  } catch (error) {
+
+    console.error("State save failed:", error);
+
+  }
+
+}
+
+function loadState() {
+
+  try {
+
+    const saved =
+
+      JSON.parse(localStorage.getItem("ultron_state"));
+
+    if (!saved) return;
+
+    if (saved.modules)
+
+      ULTRON.modules = saved.modules;
+
+    if (saved.config)
+
+      ULTRON.config = saved.config;
+
+    if (saved.memory)
+
+      ULTRON.memory = saved.memory;
+
+  } catch (error) {
+
+    console.error("State load failed:", error);
+
+  }
+
+}
+
+/* ---------------------------
+
+   COMMAND PROCESSOR
+
+--------------------------- */
+
+function processCommand(input) {
+
+  const parts = input.trim().split(/\s+/);
+
+  const command = parts[0].toLowerCase();
+
+  const args = parts.slice(1);
+
+  if (!command.startsWith("/")) {
+
+    return `
+
+I received your message.
+
+ULTRON's local command core is operational,
+
+but the remote AI intelligence core is not
+
+connected yet.
+
+Type /help for available commands.
+
+`;
+
+  }
+
+  if (!ULTRON.commands[command]) {
+
+    return `
+
+UNKNOWN COMMAND
+
+"${command}"
+
+Type /help to see available commands.
+
+`;
+
+  }
+
+  try {
+
+    const response =
+
+      ULTRON.commands[command](args);
+
+    saveState();
+
+    return response;
+
+  } catch (error) {
+
+    return `
+
+COMMAND ERROR
+
+${error.message}
+
+`;
+
+  }
+
+}
+
+/* ---------------------------
+
+   CHAT INTERFACE
+
+--------------------------- */
+
+function addMessage(sender, text, type) {
+
+  const chat = document.getElementById("chat");
+
+  if (!chat) return;
+
+  const message =
+
+    document.createElement("div");
+
+  message.className =
+
+    "message " + type;
+
+  const label =
+
+    document.createElement("div");
+
+  label.className = "label";
+
+  label.textContent = sender;
+
+  const content =
+
+    document.createElement("div");
+
+  content.textContent = text;
+
+  message.appendChild(label);
+
+  message.appendChild(content);
+
+  chat.appendChild(message);
+
+  chat.scrollTop = chat.scrollHeight;
+
+}
+
+/* ---------------------------
+
+   SEND MESSAGE
+
+--------------------------- */
+
+function sendMessage() {
+
+  const input =
+
+    document.getElementById("messageInput");
+
+  if (!input) return;
+
+  const text =
+
+    input.value.trim();
+
+  if (!text) return;
+
+  addMessage(
+
+    "YOU",
+
+    text,
+
+    "you"
+
+  );
+
+  input.value = "";
+
+  const response =
+
+    processCommand(text);
+
+  setTimeout(() => {
+
+    addMessage(
+
+      "ULTRON",
+
+      response,
+
+      "ultron"
+
+    );
+
+  }, 250);
+
+}
+
+/* ---------------------------
+
+   ENTER KEY
+
+--------------------------- */
+
+document.addEventListener(
+
+  "keydown",
+
+  function(event) {
+
+    if (
+
+      event.key === "Enter" &&
+
+      document.activeElement &&
+
+      document.activeElement.id === "messageInput"
+
+    ) {
+
+      event.preventDefault();
+
+      sendMessage();
+
+    }
+
+  }
+
+);
+
+/* ---------------------------
+
+   INITIALIZE
+
+--------------------------- */
+
+loadState();
+
+console.log("ULTRON command core initialized.");
+
+</script>
